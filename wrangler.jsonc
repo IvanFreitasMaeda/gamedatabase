@@ -2,6 +2,7 @@
   "name": "gamedatabase",
   "main": "src/index.js",
   "compatibility_date": "2025-10-01",
+  "ai": { "binding": "AI" },
   "assets": {
     "directory": "./public",
     "binding": "ASSETS",

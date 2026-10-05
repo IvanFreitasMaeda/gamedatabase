@@ -171,7 +171,7 @@ function renderNext(){
   $('#app').innerHTML=`
   <div class="hero">${cover(t.g)}<div><small style="color:var(--mute)">Sugestão para jogar agora</small><h2>${esc(t.g.n)}</h2><div>${esc(t.g.g.join(', '))}</div>${t.g.t?`<div style="color:var(--mute)">Tempo médio para zerar: ~${t.g.t} h</div>`:''}<p class="why">${esc(whyText(t))}</p>
   <div class="acts"><button class="btn" data-start="${t.g.id}">Começar a jogar</button><button class="btn sec" id="other">Ver outra sugestão</button></div></div></div>
-  <h3>Fila sugerida</h3>${r.map(x=>`<button class="li" data-open="${x.g.id}">${cover({...x.g,r:0})}<span><strong>${esc(x.g.n)}</strong><small>${esc(x.g.g.join(', '))}</small></span></button>`).join('')}`;
+  <h3>Sugestão com IA</h3><div id="ai"></div><div class="acts"><button class="btn sec" id="aibtn">Pedir sugestão com IA</button></div><h3>Fila sugerida</h3>${r.map(x=>`<button class="li" data-open="${x.g.id}">${cover({...x.g,r:0})}<span><strong>${esc(x.g.n)}</strong><small>${esc(x.g.g.join(', '))}</small></span></button>`).join('')}`;
 }
 function renderStats(){
   const rated=G.filter(g=>g.r),hrs=G.reduce((p,g)=>p+g.h,0);
