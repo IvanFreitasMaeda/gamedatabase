@@ -1,0 +1,17 @@
+{
+  "name": "gamedatabase",
+  "main": "src/index.js",
+  "compatibility_date": "2025-10-01",
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS",
+    "run_worker_first": ["/api/*"]
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "estante",
+      "database_id": "COLE_AQUI_O_ID_DO_BANCO_D1"
+    }
+  ]
+}
