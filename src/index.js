@@ -25,8 +25,10 @@ async function callback(url,env){
   const id=(url.searchParams.get('openid.claimed_id')||'').match(/^https:\/\/steamcommunity\.com\/openid\/id\/(\d{17})$/);
   if(!id||url.searchParams.get('openid.return_to')!==url.origin+'/api/auth/steam/callback')return new Response('Login Steam inválido',{status:401});
   const q=new URLSearchParams(url.search);q.set('openid.mode','check_authentication');
-  const res=await fetch('https://steamcommunity.com/openid/login',{method:'POST',headers:{'content-type':'application/x-www-form-urlencoded','user-agent':'Mozilla/5.0 (compatible; Estante)'},body:q.toString()});
-  const t=await res.text();
+  const H={'user-agent':'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36','accept':'text/plain,*/*;q=0.8','accept-language':'en-US,en;q=0.9','origin':'https://steamcommunity.com','referer':'https://steamcommunity.com/openid/login'};
+  let res=await fetch('https://steamcommunity.com/openid/login',{method:'POST',headers:{...H,'content-type':'application/x-www-form-urlencoded'},body:q.toString()});
+  let t=await res.text();
+  if(!t.includes('is_valid:true')){res=await fetch('https://steamcommunity.com/openid/login?'+q.toString(),{headers:H});t=await res.text()}
   if(!t.includes('is_valid:true'))return new Response('Falha na validação do login Steam. Resposta da Steam ('+res.status+'): '+t.slice(0,300),{status:401});
   const sid=id[1];let name='Jogador';
   try{const r=await(await fetch(`https://api.steampowered.com/ISteamUser/GetPlayerSummaries/v2/?key=${env.STEAM_API_KEY}&steamids=${sid}`)).json();name=r.response.players[0].personaname||name}catch(e){}
