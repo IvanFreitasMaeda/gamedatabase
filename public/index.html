@@ -107,10 +107,12 @@ const SEED=[
 ['Left 4 Dead 2','Ação,Cooperativo',30,'done',7],['Baldur\'s Gate 3','RPG,Estratégia,Narrativo',0,'plan',0],['Outer Wilds','Puzzle,Aventura,Narrativo',0,'plan',0],
 ['Dead Cells','Roguelike,Metroidvania,Ação',0,'plan',0],['Balatro','Roguelike,Cartas,Puzzle',0,'plan',0],['Cult of the Lamb','Roguelike,Simulação',0,'plan',0],['Factorio','Simulação,Estratégia',0,'plan',0]
 ].map((a,i)=>({id:i+1,n:a[0],g:a[1].split(','),h:a[2],s:a[3],r:a[4],rev:'',fav:false}));
+const TT=[['all','Qualquer duração'],['short','Até 10 h'],['mid','10 a 30 h'],['long','Mais de 30 h'],['none','Sem informação']];
+const ttOk=g=>F.t==='all'||(F.t==='none'?!g.t:!!g.t&&(F.t==='short'?g.t<=10:F.t==='mid'?g.t>10&&g.t<=30:g.t>30));
 const KEY='estante-v1';
 function load(){try{const x=localStorage.getItem(KEY);if(x)return JSON.parse(x)}catch(e){}return SEED}
 function save(){try{localStorage.setItem(KEY,JSON.stringify(G))}catch(e){}}
-let G=load(),V='lib',F={st:'all',g:'all',q:'',sort:'score'},skip=0;
+let G=load(),V='lib',F={st:'all',g:'all',t:'all',q:'',sort:'score'},skip=0;
 const $=s=>document.querySelector(s);
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const hue=n=>[...n].reduce((a,c)=>a+c.charCodeAt(0)*7,0)%360;
@@ -150,14 +152,15 @@ function renderLib(){
   <input class="search" id="q" type="search" placeholder="Buscar na biblioteca" value="${esc(F.q)}" aria-label="Buscar na biblioteca">
   <div class="row" role="group" aria-label="Status">${['all',...Object.keys(ST)].map(s=>`<button class="chip" data-st="${s}" aria-pressed="${F.st===s}">${s==='all'?'Todos':ST[s]}<small>${cnt(s)}</small></button>`).join('')}</div>
   <div class="row" role="group" aria-label="Gênero"><button class="chip" data-g="all" aria-pressed="${F.g==='all'}">Todos os gêneros</button>${genres.map(x=>`<button class="chip" data-g="${esc(x)}" aria-pressed="${F.g===x}">${esc(x)}</button>`).join('')}</div>
-  <div class="tools"><span id="count"></span><label>Ordenar <select id="sort"><option value="score">Nota</option><option value="hours">Horas jogadas</option><option value="name">Nome</option></select></label></div>
+  <div class="row" role="group" aria-label="Tempo para zerar">${TT.map(x=>`<button class="chip" data-tt="${x[0]}" aria-pressed="${F.t===x[0]}">${x[1]}</button>`).join('')}</div>
+  <div class="tools"><span id="count"></span><label>Ordenar <select id="sort"><option value="score">Nota</option><option value="ttb">Menor tempo para zerar</option><option value="hours">Horas jogadas</option><option value="name">Nome</option></select></label></div>
   <div class="grid" id="grid"></div>`;
   $('#sort').value=F.sort;
   grid();
 }
 function grid(){
-  let l=G.filter(g=>(F.st==='all'||g.s===F.st)&&(F.g==='all'||g.g.includes(F.g))&&g.n.toLowerCase().includes(F.q.toLowerCase()));
-  l.sort((a,b)=>F.sort==='name'?a.n.localeCompare(b.n):F.sort==='hours'?b.h-a.h:b.r-a.r||a.n.localeCompare(b.n));
+  let l=G.filter(g=>(F.st==='all'||g.s===F.st)&&(F.g==='all'||g.g.includes(F.g))&&ttOk(g)&&g.n.toLowerCase().includes(F.q.toLowerCase()));
+  l.sort((a,b)=>F.sort==='name'?a.n.localeCompare(b.n):F.sort==='ttb'?(a.t||1e9)-(b.t||1e9):F.sort==='hours'?b.h-a.h:b.r-a.r||a.n.localeCompare(b.n));
   $('#count').textContent=l.length+(l.length===1?' jogo':' jogos');
   $('#grid').innerHTML=l.length?l.map(card).join(''):'<div class="empty">Nenhum jogo com esses filtros. Limpe a busca ou escolha outro status.</div>';
 }
@@ -202,6 +205,7 @@ document.addEventListener('click',e=>{
   if(t.dataset.v){V=t.dataset.v;return render()}
   if(t.dataset.st){F.st=t.dataset.st;return renderLib()}
   if(t.dataset.g){F.g=t.dataset.g;return renderLib()}
+  if(t.dataset.tt){F.t=t.dataset.tt;return renderLib()}
   if(t.dataset.open)return sheet(+t.dataset.open);
   if(t.id==='close')return closeSheet();
   if(t.id==='other'){skip++;return renderNext()}
