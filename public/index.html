@@ -36,6 +36,12 @@ h1{font-size:30px;font-weight:700;letter-spacing:-.02em}
 .chip[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
 .chip small{color:var(--mute);margin-left:4px}
 .chip[aria-pressed="true"] small{color:inherit;opacity:.7}
+.filters{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:2px 14px;margin:12px 0}
+.fg{padding:10px 0 6px;border-top:1px solid var(--line)}
+.fg:first-child{border-top:0}
+.fl{display:block;font:600 12px/1 Figtree,sans-serif;letter-spacing:.07em;text-transform:uppercase;color:var(--mute)}
+.fg .row{flex-wrap:wrap;overflow:visible;padding:8px 0 4px}
+.fg.scroll .row{flex-wrap:nowrap;overflow-x:auto}
 .tools{display:flex;justify-content:space-between;align-items:center;color:var(--mute);font-size:14px;margin:2px 0 12px}
 select{background:var(--card);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:5px 8px;font:inherit;font-size:14px}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:14px}
@@ -66,9 +72,9 @@ h3{font-size:19px;margin:24px 0 10px}
 .stat{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px}
 .stat b{font:700 28px 'Bricolage Grotesque',sans-serif;display:block}
 .stat span{color:var(--mute);font-size:13px}
-.bar{display:grid;grid-template-columns:96px 1fr 44px;gap:10px;align-items:center;font-size:14px;margin:6px 0}
+.bar{display:grid;grid-template-columns:96px 1fr auto;gap:10px;align-items:center;font-size:14px;margin:6px 0}
 .bar i{display:block;height:10px;border-radius:5px;background:var(--brand);min-width:2px}
-.bar em{font-style:normal;color:var(--mute);text-align:right}
+.bar em{font-style:normal;color:var(--mute);text-align:right;white-space:nowrap}
 .dist{display:flex;align-items:flex-end;gap:6px;height:110px;margin-top:6px}
 .dist div{flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:4px;height:100%;font-size:12px;color:var(--mute)}
 .dist i{width:100%;background:var(--acc);border-radius:4px 4px 0 0;display:block}
@@ -153,10 +159,12 @@ function renderLib(){
   const cnt=s=>s==='all'?G.length:G.filter(g=>g.s===s).length;
   $('#app').innerHTML=`
   <input class="search" id="q" type="search" placeholder="Buscar na biblioteca" value="${esc(F.q)}" aria-label="Buscar na biblioteca">
-  <div class="row" role="group" aria-label="Status">${['all',...Object.keys(ST)].map(s=>`<button class="chip" data-st="${s}" aria-pressed="${F.st===s}">${s==='all'?'Todos':ST[s]}<small>${cnt(s)}</small></button>`).join('')}</div>
-  <div class="row" role="group" aria-label="Gênero"><button class="chip" data-g="all" aria-pressed="${F.g==='all'}">Todos os gêneros</button>${genres.map(x=>`<button class="chip" data-g="${esc(x)}" aria-pressed="${F.g===x}">${esc(x)}</button>`).join('')}</div>
-  <div class="row" role="group" aria-label="Tempo para zerar">${TT.map(x=>`<button class="chip" data-tt="${x[0]}" aria-pressed="${F.t===x[0]}">${x[1]}</button>`).join('')}</div>
-  <div class="row" role="group" aria-label="Sistema operacional"><button class="chip" data-os="all" aria-pressed="${!F.os.length}">Qualquer sistema</button>${OS.map(x=>`<button class="chip" data-os="${x[0]}" aria-pressed="${F.os.includes(x[0])}">${x[1]}</button>`).join('')}</div>
+  <section class="filters">
+  <div class="fg"><span class="fl">Status</span><div class="row" role="group" aria-label="Status">${['all',...Object.keys(ST)].map(s=>`<button class="chip" data-st="${s}" aria-pressed="${F.st===s}">${s==='all'?'Todos':ST[s]}<small>${cnt(s)}</small></button>`).join('')}</div></div>
+  <div class="fg scroll"><span class="fl">Gênero</span><div class="row" role="group" aria-label="Gênero"><button class="chip" data-g="all" aria-pressed="${F.g==='all'}">Todos os gêneros</button>${genres.map(x=>`<button class="chip" data-g="${esc(x)}" aria-pressed="${F.g===x}">${esc(x)}</button>`).join('')}</div></div>
+  <div class="fg"><span class="fl">Tempo para zerar</span><div class="row" role="group" aria-label="Tempo para zerar">${TT.map(x=>`<button class="chip" data-tt="${x[0]}" aria-pressed="${F.t===x[0]}">${x[1]}</button>`).join('')}</div></div>
+  <div class="fg"><span class="fl">Sistema</span><div class="row" role="group" aria-label="Sistema operacional"><button class="chip" data-os="all" aria-pressed="${!F.os.length}">Qualquer sistema</button>${OS.map(x=>`<button class="chip" data-os="${x[0]}" aria-pressed="${F.os.includes(x[0])}">${x[1]}</button>`).join('')}</div></div>
+  </section>
   <div class="tools"><span id="count"></span><label>Ordenar <select id="sort"><option value="score">Nota</option><option value="ttb">Menor tempo para zerar</option><option value="hours">Horas jogadas</option><option value="name">Nome</option></select></label></div>
   <div class="grid" id="grid"></div>`;
   $('#sort').value=F.sort;
