@@ -1,4 +1,4 @@
-# Estante (Cloudflare Workers)
+# My Game List (Cloudflare Workers)
 
 1. Apague a pasta `functions` do repositório (se existir) e envie estes arquivos: `wrangler.jsonc`, `src/index.js`, `public/*`, `schema.sql`.
 2. Cloudflare > Storage & databases > D1 > criar banco `estante`. Copie o **Database ID**, abra o schema.sql no Console do banco e execute.

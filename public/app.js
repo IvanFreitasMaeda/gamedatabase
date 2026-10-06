@@ -21,5 +21,6 @@ try{await api('me')}catch(e){
   document.querySelector('#app').innerHTML=e.status===401?'<div class="hero" style="grid-template-columns:1fr"><div><h2>Entre com sua conta Steam</h2><p class="why">Sua biblioteca é importada automaticamente. O app só lê a lista de jogos pública e nunca vê sua senha.</p><a class="btn" href="/api/auth/steam" style="display:inline-block;text-decoration:none">Entrar com Steam</a></div></div>':'<div class="empty">Sem conexão com o servidor. Tente novamente em instantes.</div>';
   return}
 await reload();
+if(G.some(g=>g.p===null))enrichAll();
 if(!G.length)doSync(document.querySelector('#sync'));else render();
 })();

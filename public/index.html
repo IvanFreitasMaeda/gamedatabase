@@ -3,11 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Estante</title>
+<title>My Game List</title>
 <meta name="theme-color" content="#1F4E79">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="Estante">
+<meta name="apple-mobile-web-app-title" content="My Game List">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -23,7 +23,7 @@ h1,h2,h3,.disp{font-family:'Bricolage Grotesque',Figtree,system-ui,sans-serif;ma
 button{font:inherit;color:inherit;cursor:pointer}
 button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible{outline:3px solid var(--acc);outline-offset:2px}
 .wrap{max-width:980px;margin:0 auto;padding:16px 16px 96px}
-header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px}
+header{flex-wrap:wrap;display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px}
 h1{font-size:30px;font-weight:700;letter-spacing:-.02em}
 .sync{background:var(--brand);color:#fff;border:0;border-radius:10px;padding:9px 14px;font-weight:600}
 :root[data-theme="dark"] .sync{color:#0F1A24}
@@ -89,7 +89,7 @@ textarea{width:100%;min-height:90px;border:1px solid var(--line);background:var(
 </head>
 <body>
 <div class="wrap">
-  <header><h1>Estante</h1><button class="sync" id="sync">Sincronizar Steam</button></header>
+  <header><h1>My Game List</h1><button class="sync" id="sync">Sincronizar Steam</button></header>
   <main id="app"></main>
 </div>
 <nav aria-label="Principal">
@@ -109,15 +109,18 @@ const SEED=[
 ].map((a,i)=>({id:i+1,n:a[0],g:a[1].split(','),h:a[2],s:a[3],r:a[4],rev:'',fav:false}));
 const TT=[['all','Qualquer duração'],['short','Até 10 h'],['mid','10 a 30 h'],['long','Mais de 30 h'],['none','Sem informação']];
 const ttOk=g=>F.t==='all'||(F.t==='none'?!g.t:!!g.t&&(F.t==='short'?g.t<=10:F.t==='mid'?g.t>10&&g.t<=30:g.t>30));
+const OS=[['windows','Windows'],['mac','macOS']];
+const osOk=g=>!F.os.length||F.os.every(o=>(g.p||[]).includes(o));
+const fh=n=>(+n||0).toLocaleString('pt-BR',{maximumFractionDigits:2});
 const KEY='estante-v1';
 function load(){try{const x=localStorage.getItem(KEY);if(x)return JSON.parse(x)}catch(e){}return SEED}
 function save(){try{localStorage.setItem(KEY,JSON.stringify(G))}catch(e){}}
-let G=load(),V='lib',F={st:'all',g:'all',t:'all',q:'',sort:'score'},skip=0;
+let G=load(),V='lib',F={st:'all',g:'all',t:'all',os:[],q:'',sort:'score'},skip=0;
 const $=s=>document.querySelector(s);
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const hue=n=>[...n].reduce((a,c)=>a+c.charCodeAt(0)*7,0)%360;
 const cover=g=>`<div class="cv" style="--h:${hue(g.n)}"><span>${esc(g.n[0])}</span>${g.a?`<img src="https://cdn.cloudflare.steamstatic.com/steam/apps/${g.a}/library_600x900.jpg" alt="" loading="lazy" onerror="this.remove()" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover">`:''}${g.r?`<b class="sc">${g.r}</b>`:''}</div>`;
-const card=g=>`<button class="card" data-open="${g.id}">${cover(g)}<div class="ct"><strong>${esc(g.n)}</strong><small>${esc(g.g.join(', '))}</small><small>${ST[g.s]}${g.h?', '+g.h+' h':''}</small>${g.t?`<small>~${g.t} h para zerar</small>`:''}</div></button>`;
+const card=g=>`<button class="card" data-open="${g.id}">${cover(g)}<div class="ct"><strong>${esc(g.n)}</strong><small>${esc(g.g.join(', '))}</small><small>${ST[g.s]}${g.h?', '+fh(g.h)+' h':''}</small>${g.t?`<small>~${g.t} h para zerar</small>`:''}</div></button>`;
 
 function affinity(){
   const m={};
@@ -153,13 +156,14 @@ function renderLib(){
   <div class="row" role="group" aria-label="Status">${['all',...Object.keys(ST)].map(s=>`<button class="chip" data-st="${s}" aria-pressed="${F.st===s}">${s==='all'?'Todos':ST[s]}<small>${cnt(s)}</small></button>`).join('')}</div>
   <div class="row" role="group" aria-label="Gênero"><button class="chip" data-g="all" aria-pressed="${F.g==='all'}">Todos os gêneros</button>${genres.map(x=>`<button class="chip" data-g="${esc(x)}" aria-pressed="${F.g===x}">${esc(x)}</button>`).join('')}</div>
   <div class="row" role="group" aria-label="Tempo para zerar">${TT.map(x=>`<button class="chip" data-tt="${x[0]}" aria-pressed="${F.t===x[0]}">${x[1]}</button>`).join('')}</div>
+  <div class="row" role="group" aria-label="Sistema operacional"><button class="chip" data-os="all" aria-pressed="${!F.os.length}">Qualquer sistema</button>${OS.map(x=>`<button class="chip" data-os="${x[0]}" aria-pressed="${F.os.includes(x[0])}">${x[1]}</button>`).join('')}</div>
   <div class="tools"><span id="count"></span><label>Ordenar <select id="sort"><option value="score">Nota</option><option value="ttb">Menor tempo para zerar</option><option value="hours">Horas jogadas</option><option value="name">Nome</option></select></label></div>
   <div class="grid" id="grid"></div>`;
   $('#sort').value=F.sort;
   grid();
 }
 function grid(){
-  let l=G.filter(g=>(F.st==='all'||g.s===F.st)&&(F.g==='all'||g.g.includes(F.g))&&ttOk(g)&&g.n.toLowerCase().includes(F.q.toLowerCase()));
+  let l=G.filter(g=>(F.st==='all'||g.s===F.st)&&(F.g==='all'||g.g.includes(F.g))&&ttOk(g)&&osOk(g)&&g.n.toLowerCase().includes(F.q.toLowerCase()));
   l.sort((a,b)=>F.sort==='name'?a.n.localeCompare(b.n):F.sort==='ttb'?(a.t||1e9)-(b.t||1e9):F.sort==='hours'?b.h-a.h:b.r-a.r||a.n.localeCompare(b.n));
   $('#count').textContent=l.length+(l.length===1?' jogo':' jogos');
   $('#grid').innerHTML=l.length?l.map(card).join(''):'<div class="empty">Nenhum jogo com esses filtros. Limpe a busca ou escolha outro status.</div>';
@@ -181,16 +185,16 @@ function renderStats(){
   const dist=Array.from({length:10},(_,i)=>rated.filter(g=>g.r===i+1).length),dm=Math.max(1,...dist);
   const a=affinity(),fav=Object.entries(a).filter(e=>e[1].n>0).sort((x,y)=>y[1].avg-x[1].avg).slice(0,4);
   $('#app').innerHTML=`
-  <div class="stats"><div class="stat"><b>${G.length}</b><span>jogos na biblioteca</span></div><div class="stat"><b>${hrs}</b><span>horas jogadas</span></div><div class="stat"><b>${avg}</b><span>nota média</span></div></div>
+  <div class="stats"><div class="stat"><b>${G.length}</b><span>jogos na biblioteca</span></div><div class="stat"><b>${fh(hrs)}</b><span>horas jogadas</span></div><div class="stat"><b>${avg}</b><span>nota média</span></div></div>
   <h3>Distribuição das notas</h3><div class="dist">${dist.map((n,i)=>`<div><i style="height:${n/dm*80}%"></i>${i+1}</div>`).join('')}</div>
-  <h3>Horas por gênero</h3>${top.map(([k,v])=>`<div class="bar"><span>${esc(k)}</span><i style="width:${v/mx*100}%"></i><em>${v} h</em></div>`).join('')}
+  <h3>Horas por gênero</h3>${top.map(([k,v])=>`<div class="bar"><span>${esc(k)}</span><i style="width:${v/mx*100}%"></i><em>${fh(v)} h</em></div>`).join('')}
   <h3>Gêneros que você mais gosta</h3>${fav.map(([k,v])=>`<div class="bar"><span>${esc(k)}</span><i style="width:${v.avg*10}%"></i><em>${v.avg.toFixed(1).replace('.',',')}</em></div>`).join('')||'<div class="empty">Dê notas para ver seus gêneros favoritos.</div>'}`;
 }
 
 function sheet(id){
   const g=G.find(x=>x.id===id);if(!g)return;
   $('#layer').innerHTML=`<div class="sheet-bg" id="bg"><div class="sheet" role="dialog" aria-modal="true" aria-label="${esc(g.n)}">
-  <h2>${esc(g.n)}</h2><p class="m">${esc(g.g.join(', '))}${g.h?'. '+g.h+' h jogadas.':''}${g.t?' Tempo médio para zerar: ~'+g.t+' h.':''}</p>
+  <h2>${esc(g.n)}</h2><p class="m">${esc(g.g.join(', '))}${g.h?'. '+fh(g.h)+' h jogadas.':''}${g.t?' Tempo médio para zerar: ~'+g.t+' h.':''}${g.p&&g.p.length?'<br>Disponível em: '+g.p.map(x=>x==='mac'?'macOS':x==='windows'?'Windows':'Linux').join(', '):''}</p>
   <span class="lab">Status</span><div class="sts">${Object.entries(ST).map(([k,v])=>`<button class="chip" data-set-st="${k}" data-id="${g.id}" aria-pressed="${g.s===k}">${v}</button>`).join('')}</div>
   <span class="lab">Nota</span><div class="sg">${[1,2,3,4,5,6,7,8,9,10].map(n=>`<button data-score="${n}" data-id="${g.id}" aria-pressed="${g.r===n}">${n}</button>`).join('')}</div>
   <span class="lab">Resenha</span><textarea id="rev" data-id="${g.id}" placeholder="O que você achou?">${esc(g.rev)}</textarea>
@@ -206,6 +210,7 @@ document.addEventListener('click',e=>{
   if(t.dataset.st){F.st=t.dataset.st;return renderLib()}
   if(t.dataset.g){F.g=t.dataset.g;return renderLib()}
   if(t.dataset.tt){F.t=t.dataset.tt;return renderLib()}
+  if(t.dataset.os){const o=t.dataset.os;F.os=o==='all'?[]:F.os.includes(o)?F.os.filter(x=>x!==o):[...F.os,o];return renderLib()}
   if(t.dataset.open)return sheet(+t.dataset.open);
   if(t.id==='close')return closeSheet();
   if(t.id==='other'){skip++;return renderNext()}
@@ -232,11 +237,11 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'&&$('#bg'))closeSheet
 // PWA: manifesto e ícone gerados na hora (sem arquivos externos)
 try{
   const c=document.createElement('canvas');c.width=c.height=180;const x=c.getContext('2d');
-  x.fillStyle='#1F4E79';x.fillRect(0,0,180,180);x.fillStyle='#E8A317';x.font='700 120px sans-serif';x.textAlign='center';x.textBaseline='middle';x.fillText('E',90,96);
+  x.fillStyle='#1F4E79';x.fillRect(0,0,180,180);x.fillStyle='#E8A317';x.font='700 120px sans-serif';x.textAlign='center';x.textBaseline='middle';x.fillText('M',90,96);
   const icon=c.toDataURL('image/png');
   const a=document.createElement('link');a.rel='apple-touch-icon';a.href=icon;document.head.appendChild(a);
   const m=document.createElement('link');m.rel='manifest';
-  m.href='data:application/manifest+json,'+encodeURIComponent(JSON.stringify({name:'Estante',short_name:'Estante',display:'standalone',background_color:'#1F4E79',theme_color:'#1F4E79',icons:[{src:icon,sizes:'180x180',type:'image/png'}]}));
+  m.href='data:application/manifest+json,'+encodeURIComponent(JSON.stringify({name:'My Game List',short_name:'My Game List',display:'standalone',background_color:'#1F4E79',theme_color:'#1F4E79',icons:[{src:icon,sizes:'180x180',type:'image/png'}]}));
   document.head.appendChild(m);
 }catch(e){}
 </script>

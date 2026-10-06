@@ -75,15 +75,19 @@ async function sync(u,env){
   for(let i=0;i<L.length;i+=80)await env.DB.batch(L.slice(i,i+80).map(g=>st.bind(u.steamid,g.appid,g.name,Math.round(g.playtime_forever/6)/10)));
   return J({total:L.length});
 }
+let mig;
+async function migrate(env){if(mig)return;try{await env.DB.prepare('ALTER TABLE games ADD COLUMN platforms TEXT').run()}catch(e){}mig=1}
 async function enrich(u,env){
-  const {results}=await env.DB.prepare('SELECT id,appid FROM games WHERE steamid=? AND enriched=0 LIMIT 6').bind(u.steamid).all();
+  await migrate(env);
+  const {results}=await env.DB.prepare('SELECT id,appid,enriched FROM games WHERE steamid=? AND (enriched=0 OR platforms IS NULL) LIMIT 6').bind(u.steamid).all();
   for(const g of results){
-    let genres=[];
-    try{const d=await(await fetch(`https://store.steampowered.com/api/appdetails?appids=${g.appid}&l=brazilian&filters=genres`)).json();genres=((d[g.appid]||{}).data||{}).genres?.map(x=>x.description)||[]}catch(e){}
+    let genres=[],pl=[];
+    try{const d=await(await fetch(`https://store.steampowered.com/api/appdetails?appids=${g.appid}&l=brazilian&filters=genres,platforms`)).json();const x=(d[g.appid]||{}).data||{};genres=(x.genres||[]).map(y=>y.description);pl=['windows','mac','linux'].filter(k=>x.platforms&&x.platforms[k])}catch(e){}
+    if(g.enriched){await env.DB.prepare('UPDATE games SET platforms=? WHERE id=?').bind(JSON.stringify(pl),g.id).run();continue}
     const t=await ttb(g.appid,env);
-    await env.DB.prepare('UPDATE games SET genres=?,ttb=?,enriched=1 WHERE id=?').bind(JSON.stringify(genres.length?genres.slice(0,3):['Sem gênero']),t,g.id).run();
+    await env.DB.prepare('UPDATE games SET genres=?,ttb=?,platforms=?,enriched=1 WHERE id=?').bind(JSON.stringify(genres.length?genres.slice(0,3):['Sem gênero']),t,JSON.stringify(pl),g.id).run();
   }
-  const c=await env.DB.prepare('SELECT COUNT(*) n FROM games WHERE steamid=? AND enriched=0').bind(u.steamid).first();
+  const c=await env.DB.prepare('SELECT COUNT(*) n FROM games WHERE steamid=? AND (enriched=0 OR platforms IS NULL)').bind(u.steamid).first();
   return J({remaining:c.n});
 }
 let tok;
@@ -99,8 +103,9 @@ async function ttb(appid,env){
   }catch(e){return null}
 }
 async function list(u,env){
-  const {results}=await env.DB.prepare('SELECT id,appid,name,hours,genres,ttb,status,score,review FROM games WHERE steamid=?').bind(u.steamid).all();
-  return J(results.map(g=>({id:g.id,a:g.appid,n:g.name,g:JSON.parse(g.genres||'[]'),h:g.hours,t:g.ttb,s:g.status,r:g.score,rev:g.review,fav:false})));
+  await migrate(env);
+  const {results}=await env.DB.prepare('SELECT id,appid,name,hours,genres,ttb,status,score,review,platforms FROM games WHERE steamid=?').bind(u.steamid).all();
+  return J(results.map(g=>({id:g.id,a:g.appid,n:g.name,g:JSON.parse(g.genres||'[]'),h:g.hours,t:g.ttb,s:g.status,r:g.score,rev:g.review,p:g.platforms==null?null:JSON.parse(g.platforms),fav:false})));
 }
 async function update(id,u,env,b){
   const s=STS.includes(b.s)?b.s:'plan',r=Math.min(10,Math.max(0,parseInt(b.r)||0)),rev=String(b.rev||'').slice(0,5000);
