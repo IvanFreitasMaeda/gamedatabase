@@ -218,7 +218,7 @@ document.addEventListener('click',e=>{
   if(t.dataset.st){F.st=t.dataset.st;return renderLib()}
   if(t.dataset.g){F.g=t.dataset.g;return renderLib()}
   if(t.dataset.tt){F.t=t.dataset.tt;return renderLib()}
-  if(t.dataset.os){const o=t.dataset.os;F.os=o==='all'?[]:F.os.includes(o)?F.os.filter(x=>x!==o):[...F.os,o];return renderLib()}
+  if(t.dataset.os){const o=t.dataset.os;F.os=(o==='all'||F.os.includes(o))?[]:[o];return renderLib()}
   if(t.dataset.open)return sheet(+t.dataset.open);
   if(t.id==='close')return closeSheet();
   if(t.id==='other'){skip++;return renderNext()}
