@@ -1,9 +1,9 @@
 (async()=>{
 const api=async(p,o={})=>{const r=await fetch('/api/'+p,{credentials:'same-origin',headers:{'content-type':'application/json'},...o});if(!r.ok){const e=await r.json().catch(()=>({}));throw Object.assign(new Error(e.error||'Erro de conexão'),{status:r.status})}return r.json()};
-const snap=new Map(),key=g=>JSON.stringify([g.s,g.r,g.rev]);
+const snap=new Map(),key=g=>JSON.stringify([g.s,g.r,g.rev,!!g.fav]);
 const mark=()=>{snap.clear();G.forEach(g=>snap.set(g.id,key(g)))};
 let tm;
-save=function(){clearTimeout(tm);tm=setTimeout(()=>G.forEach(g=>{if(snap.get(g.id)!==key(g)){snap.set(g.id,key(g));api('games/'+g.id,{method:'PUT',body:JSON.stringify({s:g.s,r:g.r,rev:g.rev})}).catch(()=>toast('Não foi possível salvar. Verifique a conexão.'))}}),500)};
+save=function(){clearTimeout(tm);tm=setTimeout(()=>G.forEach(g=>{if(snap.get(g.id)!==key(g)){snap.set(g.id,key(g));api('games/'+g.id,{method:'PUT',body:JSON.stringify({s:g.s,r:g.r,rev:g.rev,fav:g.fav?1:0})}).catch(()=>toast('Não foi possível salvar. Verifique a conexão.'))}}),500)};
 const reload=async()=>{G=await api('games');mark()};
 const st=document.createElement('style');
 st.textContent=`.prog{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin:0 0 14px}
@@ -62,6 +62,6 @@ try{await api('me')}catch(e){
   document.querySelector('#app').innerHTML=e.status===401?'<div class="hero" style="grid-template-columns:1fr"><div><h2>Entre com sua conta Steam</h2><p class="why">Sua biblioteca é importada automaticamente. O app só lê a lista de jogos pública e nunca vê sua senha.</p><a class="btn" href="/api/auth/steam" style="display:inline-block;text-decoration:none">Entrar com Steam</a></div></div>':'<div class="empty">Sem conexão com o servidor. Tente novamente em instantes.</div>';
   return}
 await reload();
-if(G.some(g=>g.p===null))enrichAll().catch(()=>{});
+if(G.some(g=>g.p===null||(g.g.length===1&&g.g[0]==='Sem gênero')))enrichAll().catch(()=>{});
 if(!G.length)doSync(document.querySelector('#sync'));else render();
 })();

@@ -7,6 +7,7 @@ async function handle(request,env){
     if(p==='auth/steam/callback')return callback(url,env);
     const u=await user(request,env);
     if(!u)return J({error:'Não autenticado'},401);
+    await migrate(env);
     if(p==='me')return J(u);
     if(p==='logout'&&m==='POST'){await env.DB.prepare('DELETE FROM sessions WHERE steamid=?').bind(u.steamid).run();return J({ok:1},200,{'set-cookie':'s=; Path=/; Max-Age=0'})}
     if(p==='sync'&&m==='POST')return sync(u,env);
@@ -73,21 +74,44 @@ async function sync(u,env){
   if(!L)return J({error:'Biblioteca privada. No Steam, deixe "Detalhes dos jogos" como Público e tente de novo.'},400);
   const st=env.DB.prepare('INSERT INTO games(steamid,appid,name,hours) VALUES(?,?,?,?) ON CONFLICT(steamid,appid) DO UPDATE SET name=excluded.name,hours=excluded.hours');
   for(let i=0;i<L.length;i+=80)await env.DB.batch(L.slice(i,i+80).map(g=>st.bind(u.steamid,g.appid,g.name,Math.round(g.playtime_forever/6)/10)));
+  await env.DB.prepare("UPDATE games SET tries=0 WHERE steamid=? AND (genres='[\"Sem gênero\"]' OR platforms IS NULL OR enriched=0)").bind(u.steamid).run();
   return J({total:L.length});
 }
 let mig;
-async function migrate(env){if(mig)return;try{await env.DB.prepare('ALTER TABLE games ADD COLUMN platforms TEXT').run()}catch(e){}mig=1}
+async function migrate(env){
+  if(mig)return;
+  for(const c of ['platforms TEXT','fav INTEGER DEFAULT 0','tries INTEGER DEFAULT 0']){try{await env.DB.prepare('ALTER TABLE games ADD COLUMN '+c).run()}catch(e){}}
+  mig=1;
+}
+const PEND="(enriched=0 OR platforms IS NULL OR genres='[\"Sem gênero\"]') AND tries<3";
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+async function steamInfo(appid){
+  try{
+    const res=await fetch(`https://store.steampowered.com/api/appdetails?appids=${appid}&l=brazilian&filters=genres,platforms`,{headers:{'user-agent':'Mozilla/5.0 (compatible; MyGameList)'}});
+    if(!res.ok)return null;
+    const d=await res.json(),x=d&&d[appid];
+    if(!x)return null;
+    if(!x.success)return{genres:[],pl:[]};
+    const data=Array.isArray(x.data)?{}:(x.data||{});
+    return{genres:(data.genres||[]).map(y=>y.description),pl:['windows','mac','linux'].filter(k=>data.platforms&&data.platforms[k])};
+  }catch(e){return null}
+}
 async function enrich(u,env){
-  await migrate(env);
-  const {results}=await env.DB.prepare('SELECT id,appid,enriched FROM games WHERE steamid=? AND (enriched=0 OR platforms IS NULL) LIMIT 6').bind(u.steamid).all();
+  const {results}=await env.DB.prepare(`SELECT id,appid,enriched FROM games WHERE steamid=? AND ${PEND} LIMIT 6`).bind(u.steamid).all();
   for(const g of results){
-    let genres=[],pl=[];
-    try{const d=await(await fetch(`https://store.steampowered.com/api/appdetails?appids=${g.appid}&l=brazilian&filters=genres,platforms`)).json();const x=(d[g.appid]||{}).data||{};genres=(x.genres||[]).map(y=>y.description);pl=['windows','mac','linux'].filter(k=>x.platforms&&x.platforms[k])}catch(e){}
-    if(g.enriched){await env.DB.prepare('UPDATE games SET platforms=? WHERE id=?').bind(JSON.stringify(pl),g.id).run();continue}
-    const t=await ttb(g.appid,env);
-    await env.DB.prepare('UPDATE games SET genres=?,ttb=?,platforms=?,enriched=1 WHERE id=?').bind(JSON.stringify(genres.length?genres.slice(0,3):['Sem gênero']),t,JSON.stringify(pl),g.id).run();
+    const info=await steamInfo(g.appid);
+    if(!info){await env.DB.prepare('UPDATE games SET tries=tries+1 WHERE id=?').bind(g.id).run();await sleep(400);continue}
+    const gj=JSON.stringify((info.genres.length?info.genres.slice(0,3):['Sem gênero'])),pj=JSON.stringify(info.pl);
+    if(g.enriched){
+      if(info.genres.length)await env.DB.prepare('UPDATE games SET genres=?,platforms=?,tries=tries+1 WHERE id=?').bind(gj,pj,g.id).run();
+      else await env.DB.prepare('UPDATE games SET platforms=?,tries=tries+1 WHERE id=?').bind(pj,g.id).run();
+    }else{
+      const t=await ttb(g.appid,env);
+      await env.DB.prepare('UPDATE games SET genres=?,ttb=?,platforms=?,enriched=1,tries=tries+1 WHERE id=?').bind(gj,t,pj,g.id).run();
+    }
+    await sleep(250);
   }
-  const c=await env.DB.prepare('SELECT COUNT(*) n FROM games WHERE steamid=? AND (enriched=0 OR platforms IS NULL)').bind(u.steamid).first();
+  const c=await env.DB.prepare(`SELECT COUNT(*) n FROM games WHERE steamid=? AND ${PEND}`).bind(u.steamid).first();
   return J({remaining:c.n});
 }
 let tok;
@@ -104,12 +128,13 @@ async function ttb(appid,env){
 }
 async function list(u,env){
   await migrate(env);
-  const {results}=await env.DB.prepare('SELECT id,appid,name,hours,genres,ttb,status,score,review,platforms FROM games WHERE steamid=?').bind(u.steamid).all();
-  return J(results.map(g=>({id:g.id,a:g.appid,n:g.name,g:JSON.parse(g.genres||'[]'),h:g.hours,t:g.ttb,s:g.status,r:g.score,rev:g.review,p:g.platforms==null?null:JSON.parse(g.platforms),fav:false})));
+  const {results}=await env.DB.prepare('SELECT id,appid,name,hours,genres,ttb,status,score,review,platforms,fav FROM games WHERE steamid=?').bind(u.steamid).all();
+  return J(results.map(g=>({id:g.id,a:g.appid,n:g.name,g:JSON.parse(g.genres||'[]'),h:g.hours,t:g.ttb,s:g.status,r:g.score,rev:g.review,p:g.platforms==null?null:JSON.parse(g.platforms),fav:!!g.fav})));
 }
 async function update(id,u,env,b){
   const s=STS.includes(b.s)?b.s:'plan',r=Math.min(10,Math.max(0,parseInt(b.r)||0)),rev=String(b.rev||'').slice(0,5000);
-  await env.DB.prepare('UPDATE games SET status=?,score=?,review=? WHERE id=? AND steamid=?').bind(s,r,rev,id,u.steamid).run();
+  const fav=b.fav===undefined?null:(b.fav?1:0);
+  await env.DB.prepare('UPDATE games SET status=?,score=?,review=?,fav=COALESCE(?,fav) WHERE id=? AND steamid=?').bind(s,r,rev,fav,id,u.steamid).run();
   return J({ok:1});
 }
 

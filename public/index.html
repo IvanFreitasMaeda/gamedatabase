@@ -42,7 +42,10 @@ h1{font-size:30px;font-weight:700;letter-spacing:-.02em}
 .fl{display:block;font:600 12px/1 Figtree,sans-serif;letter-spacing:.07em;text-transform:uppercase;color:var(--mute)}
 .fg .row{flex-wrap:wrap;overflow:visible;padding:8px 0 4px}
 .fg.scroll .row{flex-wrap:nowrap;overflow-x:auto}
-.tools{display:flex;justify-content:space-between;align-items:center;color:var(--mute);font-size:14px;margin:2px 0 12px}
+.cv .fv{position:absolute;top:8px;left:8px;width:28px;height:28px;border-radius:50%;background:var(--card);color:#E0455B;display:grid;place-items:center;font:400 15px/1 Figtree,sans-serif;opacity:1}
+.li .cv .fv{display:none}
+.tr{display:flex;align-items:center;gap:10px;margin-left:auto}
+.tools{flex-wrap:wrap;gap:8px 10px;display:flex;justify-content:space-between;align-items:center;color:var(--mute);font-size:14px;margin:2px 0 12px}
 select{background:var(--card);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:5px 8px;font:inherit;font-size:14px}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:14px}
 .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:0;text-align:left;overflow:hidden;display:flex;flex-direction:column}
@@ -121,11 +124,11 @@ const fh=n=>(+n||0).toLocaleString('pt-BR',{maximumFractionDigits:2});
 const KEY='estante-v1';
 function load(){try{const x=localStorage.getItem(KEY);if(x)return JSON.parse(x)}catch(e){}return SEED}
 function save(){try{localStorage.setItem(KEY,JSON.stringify(G))}catch(e){}}
-let G=load(),V='lib',F={st:'all',g:'all',t:'all',os:[],q:'',sort:'score'},skip=0;
+let G=load(),V='lib',F={st:'all',g:'all',t:'all',os:[],fav:false,q:'',sort:'score'},skip=0;
 const $=s=>document.querySelector(s);
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const hue=n=>[...n].reduce((a,c)=>a+c.charCodeAt(0)*7,0)%360;
-const cover=g=>`<div class="cv" style="--h:${hue(g.n)}"><span>${esc(g.n[0])}</span>${g.a?`<img src="https://cdn.cloudflare.steamstatic.com/steam/apps/${g.a}/library_600x900.jpg" alt="" loading="lazy" onerror="this.remove()" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover">`:''}${g.r?`<b class="sc">${g.r}</b>`:''}</div>`;
+const cover=g=>`<div class="cv" style="--h:${hue(g.n)}"><span>${esc(g.n[0])}</span>${g.a?`<img src="https://cdn.cloudflare.steamstatic.com/steam/apps/${g.a}/library_600x900.jpg" alt="" loading="lazy" onerror="this.remove()" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover">`:''}${g.fav?'<span class="fv" role="img" aria-label="Favorito">♥</span>':''}${g.r?`<b class="sc">${g.r}</b>`:''}</div>`;
 const card=g=>`<button class="card" data-open="${g.id}">${cover(g)}<div class="ct"><strong>${esc(g.n)}</strong><small>${esc(g.g.join(', '))}</small><small>${ST[g.s]}${g.h?', '+fh(g.h)+' h':''}</small>${g.t?`<small>~${g.t} h para zerar</small>`:''}</div></button>`;
 
 function affinity(){
@@ -165,13 +168,13 @@ function renderLib(){
   <div class="fg"><span class="fl">Tempo para zerar</span><div class="row" role="group" aria-label="Tempo para zerar">${TT.map(x=>`<button class="chip" data-tt="${x[0]}" aria-pressed="${F.t===x[0]}">${x[1]}</button>`).join('')}</div></div>
   <div class="fg"><span class="fl">Sistema</span><div class="row" role="group" aria-label="Sistema operacional"><button class="chip" data-os="all" aria-pressed="${!F.os.length}">Qualquer sistema</button>${OS.map(x=>`<button class="chip" data-os="${x[0]}" aria-pressed="${F.os.includes(x[0])}">${x[1]}</button>`).join('')}</div></div>
   </section>
-  <div class="tools"><span id="count"></span><label>Ordenar <select id="sort"><option value="score">Nota</option><option value="ttb">Menor tempo para zerar</option><option value="hours">Horas jogadas</option><option value="name">Nome</option></select></label></div>
+  <div class="tools"><span id="count" style="white-space:nowrap"></span><div class="tr"><button class="chip" data-fo="1" aria-pressed="${F.fav}">♥ Só favoritos<small>${G.filter(g=>g.fav).length}</small></button><label>Ordenar <select id="sort"><option value="score">Nota</option><option value="ttb">Menor tempo para zerar</option><option value="hours">Horas jogadas</option><option value="name">Nome</option></select></label></div></div>
   <div class="grid" id="grid"></div>`;
   $('#sort').value=F.sort;
   grid();
 }
 function grid(){
-  let l=G.filter(g=>(F.st==='all'||g.s===F.st)&&(F.g==='all'||g.g.includes(F.g))&&ttOk(g)&&osOk(g)&&g.n.toLowerCase().includes(F.q.toLowerCase()));
+  let l=G.filter(g=>(F.st==='all'||g.s===F.st)&&(F.g==='all'||g.g.includes(F.g))&&ttOk(g)&&osOk(g)&&(!F.fav||g.fav)&&g.n.toLowerCase().includes(F.q.toLowerCase()));
   l.sort((a,b)=>F.sort==='name'?a.n.localeCompare(b.n):F.sort==='ttb'?(a.t||1e9)-(b.t||1e9):F.sort==='hours'?b.h-a.h:b.r-a.r||a.n.localeCompare(b.n));
   $('#count').textContent=l.length+(l.length===1?' jogo':' jogos');
   $('#grid').innerHTML=l.length?l.map(card).join(''):'<div class="empty">Nenhum jogo com esses filtros. Limpe a busca ou escolha outro status.</div>';
@@ -203,6 +206,7 @@ function sheet(id){
   const g=G.find(x=>x.id===id);if(!g)return;
   $('#layer').innerHTML=`<div class="sheet-bg" id="bg"><div class="sheet" role="dialog" aria-modal="true" aria-label="${esc(g.n)}">
   <h2>${esc(g.n)}</h2><p class="m">${esc(g.g.join(', '))}${g.h?'. '+fh(g.h)+' h jogadas.':''}${g.t?' Tempo médio para zerar: ~'+g.t+' h.':''}${g.p&&g.p.length?'<br>Disponível em: '+g.p.map(x=>x==='mac'?'macOS':x==='windows'?'Windows':'Linux').join(', '):''}</p>
+  <div style="margin-top:10px"><button class="chip" data-fav="${g.id}" aria-pressed="${!!g.fav}">${g.fav?'♥ Favorito':'♡ Favoritar'}</button></div>
   <span class="lab">Status</span><div class="sts">${Object.entries(ST).map(([k,v])=>`<button class="chip" data-set-st="${k}" data-id="${g.id}" aria-pressed="${g.s===k}">${v}</button>`).join('')}</div>
   <span class="lab">Nota</span><div class="sg">${[1,2,3,4,5,6,7,8,9,10].map(n=>`<button data-score="${n}" data-id="${g.id}" aria-pressed="${g.r===n}">${n}</button>`).join('')}</div>
   <span class="lab">Resenha</span><textarea id="rev" data-id="${g.id}" placeholder="O que você achou?">${esc(g.rev)}</textarea>
@@ -218,6 +222,8 @@ document.addEventListener('click',e=>{
   if(t.dataset.st){F.st=t.dataset.st;return renderLib()}
   if(t.dataset.g){F.g=t.dataset.g;return renderLib()}
   if(t.dataset.tt){F.t=t.dataset.tt;return renderLib()}
+  if(t.dataset.fo){F.fav=!F.fav;return renderLib()}
+  if(t.dataset.fav){const g=G.find(x=>x.id===+t.dataset.fav);g.fav=!g.fav;save();return sheet(g.id)}
   if(t.dataset.os){const o=t.dataset.os;F.os=(o==='all'||F.os.includes(o))?[]:[o];return renderLib()}
   if(t.dataset.open)return sheet(+t.dataset.open);
   if(t.id==='close')return closeSheet();
