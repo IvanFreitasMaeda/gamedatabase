@@ -1,5 +1,5 @@
 (async()=>{
-const api=async(p,o={})=>{const r=await fetch('/api/'+p,{credentials:'same-origin',headers:{'content-type':'application/json'},...o});if(!r.ok){const e=await r.json().catch(()=>({}));throw Object.assign(new Error(e.error||'Erro de conexão'),{status:r.status})}return r.json()};
+const api=async(p,o={})=>{const r=await fetch('/api/'+p,{credentials:'same-origin',headers:{'content-type':'application/json'},...o});if(!r.ok){const e=await r.json().catch(()=>({}));throw Object.assign(new Error(e.error||'Erro de conexão'),{status:r.status,retry:e.retry})}return r.json()};
 const snap=new Map(),key=g=>JSON.stringify([g.s,g.r,g.rev,!!g.fav]);
 const mark=()=>{snap.clear();G.forEach(g=>snap.set(g.id,key(g)))};
 let tm;
@@ -55,7 +55,7 @@ const aiHtml=p=>p.map(x=>{const g=G.find(y=>y.id===x.id);return g?`<button class
 const showAI=()=>{try{const c=JSON.parse(localStorage.getItem('estante-ai')||'null'),el=document.querySelector('#ai');if(c&&el&&c.sig===sig())el.innerHTML=aiHtml(c.picks)}catch(e){}};
 const _render=render;render=function(){_render();if(V==='next')showAI()};
 document.addEventListener('click',async e=>{const b=e.target.closest('#aibtn');if(!b)return;b.disabled=true;b.textContent='Pensando...';const el=document.querySelector('#ai');
-try{const r=await api('recommend',{method:'POST'});try{localStorage.setItem('estante-ai',JSON.stringify({sig:sig(),picks:r.picks}))}catch(x){}el.innerHTML=aiHtml(r.picks)}catch(x){el.innerHTML='<div class="empty" style="padding:12px">'+esc(x.message)+'</div>'}
+try{const r=await api('recommend',{method:'POST'});try{localStorage.setItem('estante-ai',JSON.stringify({sig:sig(),picks:r.picks}))}catch(x){}el.innerHTML=aiHtml(r.picks)}catch(x){el.innerHTML='<div class="empty" style="padding:12px">'+esc(x.message)+'</div>';if(x.retry){let s=Math.min(x.retry,60);const t=setInterval(()=>{s--;if(s<=0){clearInterval(t);b.disabled=false;b.textContent='Pedir nova sugestão com IA'}else b.textContent='Aguarde '+s+' s'},1000);b.textContent='Aguarde '+s+' s';return}}
 b.disabled=false;b.textContent='Pedir nova sugestão com IA'});
 try{await api('me')}catch(e){
   document.querySelector('nav').hidden=true;document.querySelector('#sync').hidden=true;

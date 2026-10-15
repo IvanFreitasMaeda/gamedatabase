@@ -1,5 +1,30 @@
 const J=(o,s=200,h={})=>new Response(JSON.stringify(o),{status:s,headers:{'content-type':'application/json',...h}});
 const STS=['playing','done','hold','drop','plan'];
+
+// ---- Limite de requisições da sugestão com IA (contadores no D1) ----
+// [id, máximo de pedidos, janela em segundos]. Ajuste aqui se quiser mais ou menos folga.
+const RL_USER=[['cd',1,20],['h',10,3600],['d',30,86400]]; // por usuário: 1 a cada 20 s, 10 por hora, 30 por dia
+const RL_IP=[30,3600];        // por endereço IP: 30 por hora (barra quem cria várias contas)
+const RL_ALL=[150,86400];     // total do app por dia (protege a cota gratuita do Workers AI)
+async function hit(env,key,max,sec){
+  const now=Math.floor(Date.now()/1000);
+  const r=await env.DB.prepare('INSERT INTO rl(k,n,reset) VALUES(?,1,?) ON CONFLICT(k) DO UPDATE SET n=CASE WHEN reset<=? THEN 1 ELSE n+1 END,reset=CASE WHEN reset<=? THEN ? ELSE reset END RETURNING n,reset').bind(key,now+sec,now,now,now+sec).first();
+  return r.n>max?Math.max(1,r.reset-now):0;
+}
+const fmtWait=s=>s<90?s+' segundos':s<5400?Math.ceil(s/60)+' minutos':Math.ceil(s/3600)+' horas';
+async function aiLimited(env,steamid,ip){
+  const checks=[...RL_USER.map(([id,max,sec])=>[id,`ai:${id}:${steamid}`,max,sec]),['ip',`ai:ip:${ip}`,RL_IP[0],RL_IP[1]],['all','ai:all',RL_ALL[0],RL_ALL[1]]];
+  for(const [id,key,max,sec] of checks){
+    const w=await hit(env,key,max,sec);
+    if(w){
+      const msg=id==='cd'?`Aguarde ${fmtWait(w)} antes de pedir outra sugestão.`:id==='all'?`O limite diário de sugestões com IA do app foi atingido. Tente de novo em ${fmtWait(w)}.`:`Você atingiu o limite de sugestões com IA. Tente de novo em ${fmtWait(w)}.`;
+      return J({error:msg,retry:w},429,{'retry-after':String(w)});
+    }
+  }
+  if(Math.random()<0.05)await env.DB.prepare('DELETE FROM rl WHERE reset<?').bind(Math.floor(Date.now()/1000)-3600).run();
+  return null;
+}
+
 async function handle(request,env){
   const url=new URL(request.url),p=url.pathname.replace(/^\/api\//,''),m=request.method;
   try{
@@ -11,7 +36,7 @@ async function handle(request,env){
     if(p==='me')return J(u);
     if(p==='logout'&&m==='POST'){await env.DB.prepare('DELETE FROM sessions WHERE steamid=?').bind(u.steamid).run();return J({ok:1},200,{'set-cookie':'s=; Path=/; Max-Age=0'})}
     if(p==='sync'&&m==='POST')return sync(u,env);
-    if(p==='recommend'&&m==='POST')return recommend(u,env);
+    if(p==='recommend'&&m==='POST'){const lim=await aiLimited(env,u.steamid,request.headers.get('cf-connecting-ip')||'?');if(lim)return lim;return recommend(u,env)}
     if(p==='enrich'&&m==='POST')return enrich(u,env);
     if(p==='games'&&m==='GET')return list(u,env);
     const g=p.match(/^games\/(\d+)$/);
@@ -81,6 +106,7 @@ let mig;
 async function migrate(env){
   if(mig)return;
   for(const c of ['platforms TEXT','fav INTEGER DEFAULT 0','tries INTEGER DEFAULT 0']){try{await env.DB.prepare('ALTER TABLE games ADD COLUMN '+c).run()}catch(e){}}
+  try{await env.DB.prepare('CREATE TABLE IF NOT EXISTS rl(k TEXT PRIMARY KEY,n INTEGER NOT NULL,reset INTEGER NOT NULL)').run()}catch(e){}
   mig=1;
 }
 const PEND="(enriched=0 OR platforms IS NULL OR genres='[\"Sem gênero\"]') AND tries<3";
