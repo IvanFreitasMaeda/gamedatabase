@@ -49,7 +49,7 @@ const doSync=async b=>{
   b.disabled=false;b.textContent='Sincronizar Steam';
 };
 document.addEventListener('click',e=>{const b=e.target.closest('#sync');if(b){e.stopImmediatePropagation();doSync(b)}},true);
-if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js').catch(()=>{});
+if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js',{updateViaCache:'none'}).then(r=>document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')r.update().catch(()=>{})})).catch(()=>{});
 const sig=()=>G.filter(g=>g.r).map(g=>g.id+':'+g.r).join(',');
 const aiHtml=p=>p.map(x=>{const g=G.find(y=>y.id===x.id);return g?`<button class="li" data-open="${g.id}">${cover({...g,r:0})}<span><strong>${esc(g.n)}</strong><small>${esc(x.reason)}</small></span></button>`:''}).join('');
 const showAI=()=>{try{const c=JSON.parse(localStorage.getItem('estante-ai')||'null'),el=document.querySelector('#ai');if(c&&el&&c.sig===sig())el.innerHTML=aiHtml(c.picks)}catch(e){}};
