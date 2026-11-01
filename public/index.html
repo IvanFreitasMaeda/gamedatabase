@@ -18,6 +18,7 @@
 :root[data-theme="dark"]{--bg:#0F1A24;--card:#17242F;--ink:#E8EEF3;--mute:#93A4B3;--line:#263644;--brand:#7FB2E0;--accink:#2e2000}
 html{scroll-padding-top:env(safe-area-inset-top,0px)}
 *{box-sizing:border-box}
+[hidden]{display:none!important}
 body{margin:0;background:var(--bg);color:var(--ink);font:400 16px/1.45 Figtree,system-ui,-apple-system,sans-serif;min-height:100vh}
 h1,h2,h3,.disp{font-family:'Bricolage Grotesque',Figtree,system-ui,sans-serif;margin:0}
 button{font:inherit;color:inherit;cursor:pointer}
@@ -105,6 +106,7 @@ textarea{width:100%;min-height:90px;border:1px solid var(--line);background:var(
   <button data-v="lib">Biblioteca</button>
   <button data-v="next">Próximo jogo</button>
   <button data-v="stats">Perfil</button>
+  <button data-v="friends">Amigos</button>
 </nav>
 <div id="layer"></div>
 <script>
@@ -155,7 +157,7 @@ function whyText(r){
 
 function render(){
   document.querySelectorAll('nav button').forEach(b=>b.setAttribute('aria-current',b.dataset.v===V?'page':'false'));
-  if(V==='lib')renderLib();else if(V==='next')renderNext();else renderStats();
+  if(V==='lib')renderLib();else if(V==='next')renderNext();else if(V==='stats')renderStats();else renderFriends();
 }
 function renderLib(){
   const genres=[...new Set(G.flatMap(g=>g.g))].sort();
@@ -201,6 +203,8 @@ function renderStats(){
   <h3>Horas por gênero</h3>${top.map(([k,v])=>`<div class="bar"><span>${esc(k)}</span><i style="width:${v/mx*100}%"></i><em>${fh(v)} h</em></div>`).join('')}
   <h3>Gêneros que você mais gosta</h3>${fav.map(([k,v])=>`<div class="bar"><span>${esc(k)}</span><i style="width:${v.avg*10}%"></i><em>${v.avg.toFixed(1).replace('.',',')}</em></div>`).join('')||'<div class="empty">Dê notas para ver seus gêneros favoritos.</div>'}`;
 }
+
+function renderFriends(){$('#app').innerHTML='<div class="empty">Entre com a Steam para encontrar seus amigos e comparar perfis.</div>'}
 
 function sheet(id){
   const g=G.find(x=>x.id===id);if(!g)return;
